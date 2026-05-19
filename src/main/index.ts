@@ -6,7 +6,7 @@ import * as fs from 'fs'
 let mainWindow: BrowserWindow | null = null
 
 function getDataDir(): string {
-  const dir = join(app.getPath('userData'), 'LucentChamber')
+  const dir = join(app.getPath('home'), 'LucentChamber')
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   return dir
 }

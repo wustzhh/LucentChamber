@@ -54,7 +54,7 @@ const showCreateDialog = ref(false)
 const newProjectName = ref('')
 
 onMounted(async () => {
-  if (!userStore.isLoggedIn) { router.push('/login'); return }
+  if (!userStore.isLoggedIn && !userStore.loadSession()) { router.push('/login'); return }
   projects.value = await window.api.listProjects(userStore.userId!)
 })
 

@@ -5,9 +5,19 @@
         <el-button @click="addCharacter" type="primary" size="small" style="width:100%">+ 新建角色</el-button>
       </div>
       <div class="list-body">
-        <div v-for="(ch, i) in characterList" :key="ch.filename" class="list-item"
-          :class="{ active: selectedIndex === i }"
-          @click="selectCharacter(i)">
+        <div
+          v-for="(ch, i) in characterList"
+          :key="ch.filename"
+          class="list-item"
+          :class="{ active: selectedIndex === i, 'drag-over': dragOverIndex === i }"
+          draggable="true"
+          @click="selectCharacter(i)"
+          @dragstart="onDragStart($event, ch)"
+          @dragover.prevent="onDragOver($event, i)"
+          @dragleave="dragOverIndex = null"
+          @drop="onDrop(ch)"
+        >
+          <div class="drag-handle">⠿</div>
           <div class="list-item-avatar">
             <el-avatar :size="32" :src="ch.avatarSrc || ''">{{ ch.name?.[0] || '?' }}</el-avatar>
           </div>
@@ -93,8 +103,7 @@
         </div>
         <el-button type="primary" link @click="addCustomField">+ 添加自定义字段</el-button>
 
-        <div style="display:flex;gap:8px;margin-top:16px">
-          <el-button @click="saveCurrent" type="primary">保存</el-button>
+        <div style="margin-top:16px">
           <el-button @click="deleteCurrent" type="danger" plain>删除角色</el-button>
         </div>
       </el-form>
@@ -106,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import { useProjectStore } from '@/stores/project'
@@ -123,15 +132,35 @@ interface Character {
 const projectStore = useProjectStore()
 const characterList = ref<Character[]>([])
 const selectedIndex = ref<number | null>(null)
+const loading = ref(false)
+const dragOverIndex = ref<number | null>(null)
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let dragSrc: Character | null = null
 
-const current = computed(() => characterList.value[selectedIndex.value!] || null)
-const currentFilename = computed(() => current.value?.filename || '')
+const current = computed(() => {
+  if (selectedIndex.value === null || selectedIndex.value >= characterList.value.length) return null
+  return characterList.value[selectedIndex.value]
+})
 
-onMounted(loadCharacters)
+onMounted(async () => {
+  loading.value = true
+  await loadCharacters()
+  loading.value = false
+})
+
+onUnmounted(() => {
+  if (saveTimer) clearTimeout(saveTimer)
+})
+
+watch(characterList, () => {
+  if (loading.value) return
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => autoSave(), 800)
+}, { deep: true })
 
 async function loadCharacters() {
   const files = await window.api.listDir(projectStore.currentProject!, 'characters')
-  characterList.value = []
+  const list: Character[] = []
   for (const f of files) {
     if (f.name.endsWith('.json')) {
       const data = await window.api.readJSON(projectStore.currentProject!, `characters/${f.name}`)
@@ -140,10 +169,31 @@ async function loadCharacters() {
         if (ch.avatarPath) {
           ch.avatarSrc = await window.api.readImageBase64(projectStore.currentProject!, 'characters', ch.avatarPath) || ''
         }
-        characterList.value.push(ch)
+        list.push(ch)
       }
     }
   }
+  // Apply saved order
+  const orderData = await window.api.readJSON(projectStore.currentProject!, 'characters_order.json')
+  if (orderData && Array.isArray(orderData)) {
+    const orderMap = new Map(orderData.map((fn: string, idx: number) => [fn, idx]))
+    list.sort((a, b) => (orderMap.get(a.filename) ?? 999) - (orderMap.get(b.filename) ?? 999))
+  }
+  characterList.value = list
+}
+
+async function autoSave() {
+  for (const ch of characterList.value) {
+    const data = JSON.parse(JSON.stringify({
+      name: ch.name, gender: ch.gender, age: ch.age,
+      personality: ch.personality, appearance: ch.appearance, background: ch.background,
+      avatarPath: ch.avatarPath, customFields: ch.customFields
+    }))
+    await window.api.writeJSON(projectStore.currentProject!, `characters/${ch.filename}`, data)
+  }
+  // Save order
+  await window.api.writeJSON(projectStore.currentProject!, 'characters_order.json',
+    characterList.value.map(c => c.filename))
 }
 
 function defaultChar(): Omit<Character, 'filename'> {
@@ -157,23 +207,12 @@ function defaultChar(): Omit<Character, 'filename'> {
 function selectCharacter(i: number) { selectedIndex.value = i }
 
 async function addCharacter() {
-  const newChar: Omit<Character, 'filename'> = defaultChar()
   const { value } = await ElMessageBox.prompt('角色名称', '新建角色')
-  if (value) {
-    newChar.name = value
-    const filename = `${value}.json`
-    characterList.value.push({ filename, ...newChar })
-    selectedIndex.value = characterList.value.length - 1
-    await saveCurrent()
-  }
-}
-
-async function saveCurrent() {
-  if (selectedIndex.value === null) return
-  const ch = characterList.value[selectedIndex.value]
-  const data = { name: ch.name, gender: ch.gender, age: ch.age, personality: ch.personality, appearance: ch.appearance, background: ch.background, avatarPath: ch.avatarPath, customFields: ch.customFields }
-  await window.api.writeJSON(projectStore.currentProject!, `characters/${ch.filename}`, data)
-  ElMessage.success('保存成功')
+  if (!value) return
+  const filename = `${value}.json`
+  const newChar: Character = { filename, ...defaultChar(), name: value }
+  characterList.value.push(newChar)
+  selectedIndex.value = characterList.value.length - 1
 }
 
 async function deleteCurrent() {
@@ -181,9 +220,11 @@ async function deleteCurrent() {
   try {
     const ch = characterList.value[selectedIndex.value]
     await ElMessageBox.confirm(`确定删除「${ch.name}」？`, '确认')
+    loading.value = true
     await window.api.deleteFile(projectStore.currentProject!, `characters/${ch.filename}`)
     characterList.value.splice(selectedIndex.value, 1)
     selectedIndex.value = null
+    loading.value = false
     ElMessage.success('已删除')
   } catch { /* cancelled */ }
 }
@@ -218,6 +259,30 @@ function removeCustomField(i: number) {
 function fieldPlaceholder(type: string) {
   return type === 'date' ? 'YYYY-MM-DD' : type === 'number' ? '0' : '输入值'
 }
+
+function onDragStart(e: DragEvent, ch: Character) {
+  dragSrc = ch
+  e.dataTransfer!.effectAllowed = 'move'
+}
+
+function onDragOver(_e: DragEvent, i: number) {
+  dragOverIndex.value = i
+}
+
+function onDrop(target: Character) {
+  dragOverIndex.value = null
+  if (!dragSrc || dragSrc === target) return
+  const fromIdx = characterList.value.indexOf(dragSrc)
+  const toIdx = characterList.value.indexOf(target)
+  if (fromIdx === -1 || toIdx === -1) return
+  const [item] = characterList.value.splice(fromIdx, 1)
+  characterList.value.splice(toIdx, 0, item)
+  if (selectedIndex.value === fromIdx) selectedIndex.value = toIdx
+  else if (selectedIndex.value !== null && selectedIndex.value >= Math.min(fromIdx, toIdx) && selectedIndex.value <= Math.max(fromIdx, toIdx)) {
+    selectedIndex.value += fromIdx < toIdx ? -1 : 1
+  }
+  dragSrc = null
+}
 </script>
 
 <style scoped>
@@ -230,12 +295,16 @@ function fieldPlaceholder(type: string) {
 .list-header { padding: 12px }
 .list-body { flex: 1; overflow-y: auto }
 .list-item {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; cursor: pointer;
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 .list-item:hover { background: rgba(255,255,255,0.04) }
 .list-item.active { background: rgba(64,158,255,0.1); border-left: 2px solid #409EFF }
+.list-item.drag-over { background: rgba(64,158,255,0.15); border-left: 2px solid #67C23A }
+.drag-handle { color: #555; cursor: grab; font-size: 16px; line-height: 1; user-select: none; flex-shrink: 0 }
+.drag-handle:active { cursor: grabbing }
+.list-item-avatar { flex-shrink: 0 }
 .list-item-info { flex: 1; min-width: 0 }
 .list-item-title { font-size: 14px; color: #ddd }
 .list-item-sub { font-size: 12px; color: #888; margin-top: 2px }

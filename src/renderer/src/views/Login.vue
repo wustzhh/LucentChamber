@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -34,6 +34,12 @@ const router = useRouter()
 const userStore = useUserStore()
 const formRef = ref()
 const loading = ref(false)
+
+onMounted(() => {
+  if (userStore.loadSession()) {
+    router.replace('/projects')
+  }
+})
 
 const form = reactive({ username: '', password: '' })
 const rules = {

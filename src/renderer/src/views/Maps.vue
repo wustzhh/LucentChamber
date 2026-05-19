@@ -72,7 +72,7 @@ function getImageSrc(filename: string): string {
 }
 
 async function saveMaps() {
-  await window.api.writeJSON(projectStore.currentProject!, 'maps.json', maps.value)
+  await window.api.writeJSON(projectStore.currentProject!, 'maps.json', JSON.parse(JSON.stringify(maps.value)))
   ElMessage.success('保存成功')
 }
 

@@ -122,5 +122,5 @@ function handleLogout() {
 .nav-item.active { background: rgba(64, 158, 255, 0.15); color: #409EFF }
 .nav-text { white-space: nowrap }
 
-.content { flex: 1; overflow: auto; padding: 0 }
+.content { flex: 1; overflow: hidden; padding: 0 }
 </style>

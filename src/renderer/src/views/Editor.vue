@@ -203,6 +203,21 @@ async function addIllustration() {
   }
 }
 
+async function loadIllustrations() {
+  try {
+    const files = await window.api.listDir(projectStore.currentProject!, 'images/illustrations')
+    illustrations.value = []
+    for (const f of files) {
+      if (!f.isDirectory) {
+        const src = await window.api.readImageBase64(projectStore.currentProject!, 'illustrations', f.name)
+        if (src) {
+          illustrations.value.push({ src, filename: f.name })
+        }
+      }
+    }
+  } catch { /* dir may not exist yet */ }
+}
+
 </script>
 
 <style scoped>

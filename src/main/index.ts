@@ -1,12 +1,18 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { initDB, getUser, createUser } from './database'
 import * as fs from 'fs'
 
 let mainWindow: BrowserWindow | null = null
 
 function getDataDir(): string {
-  const dir = join(app.getPath('home'), 'LucentChamber')
+  let base: string
+  if (app.isPackaged) {
+    base = process.env.PORTABLE_EXECUTABLE_DIR || dirname(app.getPath('exe'))
+  } else {
+    base = process.cwd()
+  }
+  const dir = join(base, 'data')
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   return dir
 }

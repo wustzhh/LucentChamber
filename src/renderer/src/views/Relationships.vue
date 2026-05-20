@@ -16,16 +16,16 @@
         <p v-if="characters.length === 0">请先在「人物」页面创建角色</p>
         <p v-else>还没有关系数据，点击「添加关系」开始</p>
       </div>
-      <div class="bottom-bar" v-if="selectedInfo.length > 0">
-        <div style="font-size:12px;color:#888;margin-bottom:4px">共 {{ selectedInfo.length }} 条关系</div>
-        <div v-for="item in selectedInfo" :key="item.id" class="relation-row">
-          <span>{{ getCharName(item.from) }}</span>
-          <span class="arr">→</span>
-          <el-tag size="small" type="warning">{{ item.label }}</el-tag>
-          <span class="arr">→</span>
-          <span>{{ getCharName(item.to) }}</span>
-          <el-button type="danger" link size="small" @click="deleteRelation(item)">删除</el-button>
-        </div>
+    </div>
+    <div class="bottom-bar" v-show="selectedInfo.length > 0">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">共 {{ selectedInfo.length }} 条关系</div>
+      <div v-for="item in selectedInfo" :key="item.id" class="relation-row">
+        <span>{{ getCharName(item.from) }}</span>
+        <span class="arr">→</span>
+        <el-tag size="small" type="warning">{{ item.label }}</el-tag>
+        <span class="arr">→</span>
+        <span>{{ getCharName(item.to) }}</span>
+        <el-button type="danger" link size="small" @click="deleteRelation(item)">删除</el-button>
       </div>
     </div>
 
@@ -100,7 +100,6 @@ function getNodeColor(label: string): string {
   return `hsl(${Math.abs(hash % 360)}, 60%, 55%)`
 }
 
-// Single click handler on the container — reads latest network/edgesDs
 function onGraphClick(e: MouseEvent) {
   const nw = network
   const eds = edgesDs
@@ -131,7 +130,6 @@ function onGraphClick(e: MouseEvent) {
 }
 
 async function loadData() {
-  // Save positions before destroy
   if (network) {
     try {
       const pos = network.getPositions()
@@ -161,14 +159,8 @@ async function loadData() {
   }
 
   const nodeItems = characters.value.map(c => {
-    const base: any = {
-      id: c.id, label: c.name,
-      color: { background: getNodeColor(c.name), border: '#fff' }
-    }
-    if (savedPositions[c.id]) {
-      base.x = savedPositions[c.id].x
-      base.y = savedPositions[c.id].y
-    }
+    const base: any = { id: c.id, label: c.name, color: { background: getNodeColor(c.name), border: '#fff' } }
+    if (savedPositions[c.id]) { base.x = savedPositions[c.id].x; base.y = savedPositions[c.id].y }
     return base
   })
   const nodes = new DataSet<GraphNode>(nodeItems)
@@ -177,10 +169,7 @@ async function loadData() {
   if (relData?.edges) {
     for (const e of relData.edges) {
       if (filterType.value && e.label !== filterType.value) continue
-      allEdges.push({
-        id: e.id || `${e.from}-${e.to}-${e.label}`,
-        from: e.from, to: e.to, label: e.label
-      })
+      allEdges.push({ id: e.id || `${e.from}-${e.to}-${e.label}`, from: e.from, to: e.to, label: e.label })
     }
   }
   const edges = new DataSet<GraphEdge>(allEdges)
@@ -194,12 +183,7 @@ async function loadData() {
   const hasSavedPositions = Object.keys(savedPositions).length > 0
 
   network = new Network(graphRef.value, { nodes, edges }, {
-    physics: {
-      enabled: !hasSavedPositions,
-      stabilization: { iterations: 200 },
-      solver: 'forceAtlas2Based',
-      forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.005, springLength: 150 }
-    },
+    physics: { enabled: !hasSavedPositions, stabilization: { iterations: 200 }, solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.005, springLength: 150 } },
     edges: { arrows: { to: { enabled: false } }, font: { size: 10, color: '#aaa' }, smooth: { type: 'curvedCW' } },
     nodes: { font: { color: '#fff' }, shape: 'dot', size: 20 },
     interaction: { hover: true, tooltipDelay: 100, selectable: true, selectConnectedEdges: false }
@@ -214,14 +198,10 @@ async function loadData() {
     })
   }
 
-  setTimeout(() => {
-    if (network) network.fit({ animation: hasSavedPositions })
-  }, hasSavedPositions ? 100 : 300)
+  setTimeout(() => { if (network) network.fit({ animation: hasSavedPositions }) }, hasSavedPositions ? 100 : 300)
 }
 
-function autoLayout() {
-  if (network) network.fit({ animation: true })
-}
+function autoLayout() { if (network) network.fit({ animation: true }) }
 
 async function addRelation() {
   const { source, target, type } = newRelation.value
@@ -257,25 +237,15 @@ async function deleteRelation(edge: GraphEdge) {
 </script>
 
 <style scoped>
-.page { display: flex; flex-direction: column; height: 100%; overflow: hidden }
-
+.page { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative }
 .page-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px 0; flex-shrink: 0 }
 .page-header h2 { margin: 0; color: #e0e0e0 }
 .page-toolbar { display: flex; gap: 8px; align-items: center }
-
 .graph-container { flex: 1 1 0; min-height: 0; margin: 8px; border-radius: 8px; background: rgba(0,0,0,0.15); position: relative; overflow: hidden }
 .graph-empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #888; text-align: center; font-size: 14px }
 .graph-empty p { margin: 4px 0 }
-
-.bottom-bar {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  padding: 6px 12px; max-height: 140px; overflow-y: auto;
-  background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
-  border-top: 1px solid rgba(255,255,255,0.1);
-  z-index: 10;
-}
+.bottom-bar { position: absolute; bottom: 28px; left: 8px; right: 8px; padding: 6px 12px; max-height: 140px; overflow-y: auto; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); border-top: 1px solid rgba(255,255,255,0.1); z-index: 10; border-radius: 0 0 8px 8px }
 .relation-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 13px; color: #ccc }
 .arr { color: #666; font-size: 11px }
-
 .status-bar { padding: 3px 16px; font-size: 12px; color: #666; flex-shrink: 0; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.04) }
 </style>

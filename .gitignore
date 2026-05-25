@@ -1,6 +1,7 @@
 node_modules/
 out/
-dist/
+dist/win-unpacked
+dist/builder-debug.yml
 *.exe
 *.dmg
 *.app

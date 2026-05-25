@@ -26,6 +26,9 @@
           </div>
           <el-button size="small" @click="uploadMapImage" style="margin-top:8px">更换图片</el-button>
         </el-form-item>
+        <el-form-item label="类型">
+          <TagPicker v-model="current.type" category="地图标签" placeholder="选择或输入类型" size="small" />
+        </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="current.description" type="textarea" :rows="5" />
         </el-form-item>
@@ -45,8 +48,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useProjectStore } from '@/stores/project'
+import TagPicker from '@/components/TagPicker.vue'
 
-interface MapData { name: string; image: string; description: string }
+interface MapData { name: string; image: string; description: string; type: string }
 
 const projectStore = useProjectStore()
 const maps = ref<MapData[]>([])
@@ -77,7 +81,7 @@ async function saveMaps() {
 }
 
 function addMap() {
-  maps.value.push({ name: '', image: '', description: '' })
+  maps.value.push({ name: '', image: '', description: '', type: '' })
   selectedIndex.value = maps.value.length - 1
 }
 

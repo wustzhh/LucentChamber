@@ -16,7 +16,9 @@ const router = createRouter({
         { path: 'characters', name: 'Characters', component: () => import('@/views/Characters.vue') },
         { path: 'relationships', name: 'Relationships', component: () => import('@/views/Relationships.vue') },
         { path: 'maps', name: 'Maps', component: () => import('@/views/Maps.vue') },
-        { path: 'editor', name: 'Editor', component: () => import('@/views/Editor.vue') }
+        { path: 'editor', name: 'Editor', component: () => import('@/views/Editor.vue') },
+        { path: 'settings', name: 'Settings', component: () => import('@/views/Settings.vue') },
+        { path: 'glossary', name: 'Glossary', component: () => import('@/views/Glossary.vue') }
       ]
     }
   ]

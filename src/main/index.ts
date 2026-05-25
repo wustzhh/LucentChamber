@@ -109,6 +109,8 @@ ipcMain.handle('project:create', (_event, name: string) => {
   fs.writeFileSync(join(projDir, 'relationships.json'), JSON.stringify({ nodes: [], edges: [] }, null, 2))
   fs.writeFileSync(join(projDir, 'maps.json'), JSON.stringify([], null, 2))
   fs.writeFileSync(join(projDir, 'novel.txt'), '')
+  fs.writeFileSync(join(projDir, 'glossary.json'), JSON.stringify([], null, 2))
+  fs.writeFileSync(join(projDir, 'settings.json'), JSON.stringify([], null, 2))
 
   return { success: true, project: meta }
 })

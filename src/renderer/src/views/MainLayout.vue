@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Fold, Expand, Clock, Document, User, Connection, MapLocation, Edit } from '@element-plus/icons-vue'
+import { Fold, Expand, Clock, Document, User, Connection, MapLocation, Edit, Setting, Collection } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useProjectStore } from '@/stores/project'
 
@@ -45,6 +45,8 @@ const projectStore = useProjectStore()
 const sidebarCollapsed = ref(false)
 
 const navItems = [
+  { path: '/workspace/settings', label: '设定', icon: Setting },
+  { path: '/workspace/glossary', label: '名词', icon: Collection },
   { path: '/workspace/timeline', label: '时间线', icon: Clock },
   { path: '/workspace/events', label: '大事件', icon: Document },
   { path: '/workspace/characters', label: '人物', icon: User },

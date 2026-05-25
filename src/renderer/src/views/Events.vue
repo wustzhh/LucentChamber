@@ -60,6 +60,12 @@
             </el-dropdown>
           </div>
         </el-form-item>
+        <el-form-item label="类别">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <el-tag v-for="(t, i) in events[selectedIndex].tags" :key="i" closable size="small" @close="events[selectedIndex].tags.splice(i,1)">{{ t }}</el-tag>
+            <TagPicker v-model="newEventTag" category="事件标签" placeholder="添加标签" size="small" style="width:120px" @update:model-value="addEventTag" />
+          </div>
+        </el-form-item>
         <el-button @click="deleteEvent(selectedIndex)" type="danger" plain>删除事件</el-button>
       </el-form>
     </div>
@@ -72,12 +78,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useProjectStore } from '@/stores/project'
+import TagPicker from '@/components/TagPicker.vue'
 
 interface Event {
-  title: string
-  year: string
-  description: string
-  characterIds: string[]
+  title: string; year: string; description: string
+  characterIds: string[]; tags: string[]
 }
 
 interface Character { id: string; name: string }
@@ -88,6 +93,7 @@ const characters = ref<Character[]>([])
 const selectedIndex = ref<number | null>(null)
 const searchText = ref('')
 const loading = ref(false)
+const newEventTag = ref('')
 const dragOverIndex = ref<number | null>(null)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let dragSrc: Event | null = null
@@ -104,7 +110,7 @@ const filteredList = computed(() => {
 onMounted(async () => {
   loading.value = true
   const data = await window.api.readJSON(projectStore.currentProject!, 'events.json')
-  if (data) events.value = data
+  if (data) events.value = data.map((e: any) => ({ ...e, tags: e.tags || [] }))
   await loadCharacters()
   loading.value = false
 })
@@ -121,6 +127,27 @@ watch(events, () => {
 
 async function autoSave() {
   await window.api.writeJSON(projectStore.currentProject!, 'events.json', JSON.parse(JSON.stringify(events.value)))
+  // Sync tags to glossary
+  const tags = new Set<string>()
+  for (const ev of events.value) {
+    for (const cid of ev.characterIds) {
+      const name = getCharName(cid)
+      if (name && name !== cid) tags.add(name)
+    }
+  }
+  if (tags.size === 0) return
+  const glossary = await window.api.readJSON(projectStore.currentProject!, 'glossary.json') || []
+  let tagCat = glossary.find((c: any) => c.name === '关联角色')
+  if (!tagCat) {
+    tagCat = { id: `${Date.now()}`, name: '关联角色', terms: [] }
+    glossary.push(tagCat)
+  }
+  for (const t of tags) {
+    if (!tagCat.terms.find((term: any) => term.name === t)) {
+      tagCat.terms.push({ id: `${Date.now()}`, name: t, description: '' })
+    }
+  }
+  await window.api.writeJSON(projectStore.currentProject!, 'glossary.json', glossary)
 }
 
 async function loadCharacters() {
@@ -139,7 +166,7 @@ function getCharName(id: string) {
 }
 
 function addEvent() {
-  events.value.push({ title: '', year: '', description: '', characterIds: [] })
+  events.value.push({ title: '', year: '', description: '', characterIds: [], tags: [] })
   selectedIndex.value = events.value.length - 1
 }
 
@@ -156,6 +183,13 @@ function addCharacter(eventIndex: number, charId: string) {
 
 function removeCharacter(eventIndex: number, charIndex: number) {
   events.value[eventIndex].characterIds.splice(charIndex, 1)
+}
+
+function addEventTag(value: string) {
+  if (!value || selectedIndex.value === null) return
+  const ev = events.value[selectedIndex.value]
+  if (!ev.tags.includes(value)) ev.tags.push(value)
+  newEventTag.value = ''
 }
 
 function onDragStart(e: DragEvent, ev: Event) {

@@ -71,7 +71,7 @@
         <div v-for="(field, fi) in current.customFields" :key="fi" class="custom-field-row">
           <el-row :gutter="8">
             <el-col :span="6">
-              <el-input v-model="field.name" placeholder="字段名" size="small" />
+              <TagPicker v-model="field.name" category="标签" placeholder="字段名" size="small" />
             </el-col>
             <el-col :span="6">
               <el-select v-model="field.type" size="small" style="width:100%">
@@ -118,6 +118,7 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
+import TagPicker from '@/components/TagPicker.vue'
 import { useProjectStore } from '@/stores/project'
 
 interface CustomField { name: string; type: string; value: string }
@@ -192,8 +193,7 @@ async function autoSave() {
     await window.api.writeJSON(projectStore.currentProject!, `characters/${ch.filename}`, data)
   }
   // Save order
-  await window.api.writeJSON(projectStore.currentProject!, 'characters_order.json',
-    characterList.value.map(c => c.filename))
+  await window.api.writeJSON(projectStore.currentProject!, 'characters_order.json', characterList.value.map(c => c.filename))
 }
 
 function defaultChar(): Omit<Character, 'filename'> {
